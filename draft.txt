@@ -1,0 +1,269 @@
+Dear Ezio and Dejan,
+
+What do you think about the following proposition for the course project?
+
+In my research I am currently working on specifying and model checking the behavior of systems that are modified while they are running. In particular, we are looking at cloud based systems that are organized as micro-service architectures. During execution the orchestrator modifies the system by addding and removing instances of certain micro-services in order to react elastically to increased demand or in order to react to changes in the infrastructure, e.g. crashing machines.
+Our core approach is to run a model checker during system execution in order to establish the correctness of the current system configuration. When the system is reconfigured, the model is updated and the model checker incrementally updates its result for the new model. In order to notify the model checker about reconfigurations, we need a way to instrument the orchestrator (Kubernetes etc.).
+
+For the course project I would like to address the following questions:
+
+1) Instrumentation: How can we get information about the current system configuration from the orchestrator?
+I would like to explore this for systems managed with Kubernetes. As a first step it would be nice to extract a trace of system configurations for the following example application: https://github.com/GoogleCloudPlatform/microservices-demo
+
+2) Specification Mining: Can we learn behavioral patterns of the orchestrator that could be used to improve the performance of the online model checker?
+In particular, if one has a prediction for the next changes that are likely to happen, the model checker could precompute results in times where it would be idle otherwise.
+
+I am not quite sure how difficult it will be to solve 1), what parts exactly to treat for 2) could maybe be decided at a later stage when the scope is easier to estimate.
+
+Best wishes,
+Sarah
+
+steps
+==============================
+ad 1):
+
+install kubernetes - done
+get google app running - done
+define what is meant by system config - what is useful for us? what minimal info is interesting for MC? connections... what can be found out at runtime / statically?
+
+which pods, which vms, scheduling pods to VMs, (connections between pods) 
+
+try with 2 nodes?
+
+which pods, which vms, scheduling pods to VMs, connections between pods 
+
+How do we construct model from info which pods are there? 
+
+other idea: get RV traces holen + irgendwelche properties checken
+
+dann: how 
+
+- kubectl get nodes / get pods
+
+check out monitoring tools. goal: see when which servers are 
+
+
+How to get config info from Kubernetes?
+===========================================
+via events:
+pod creation
+	m12s       Normal    Created                        pod/checkoutservice-69c7dd7fdf-fbccq          Created container server
+
+pod kiling
+5m48s       Normal    Killing                        pod/cartservice-8564d589dd-mvnjz              Stopping container server
+
+scheduling pod to machine
+5m48s       Normal    Killing                        pod/cartservice-8564d589dd-mvnjz              Stopping container server
+
+creation of VMs
+	7m20s       Normal    Starting                       node/minikube                                 Starting kubelet.
+
+
+open questions:
+* connections between pods 
+* how to monitor events? + interface to this? -> want push notifications, to also capture transient things! -- goal: get Prometheus or the like running OR parse json myself
+
+
+@ transient events: event list is stored for 1h per default. scrape every x seconds to see updates
+
+
+
+take our robustness example + monitor it?
+
+@multilevel - could we do some levels online? if higher level works, so does lower level
+nice aspect of RV: we might prefer not to model Kubernetes
+
+
+next steps:
+* simulate load difference + observe what auto scaler does
+* write script to extract traces
+* email Ezio and Dejan - part 1 done, ddl?
+
+* think about part 2 - write monitor for robustness property? 
+- online or offline?
+
+
+load testing: https://jmeter.apache.org/ -- discuss with Friedrich!
+
+August 5
+======================
+Next goal: autoscaler zum laufen bringen
+
+1) zweite VM
+2) autoscaler einschalten
+3) load finden der autoscaler zum laufen bringt
+4) events beobachten für den load
+5) script: events extrahieren und in file schrieben
+
+
+August 26
+======================
+* google ding nochmal starten:
+
+minikube start --cpus=4 --memory 4096 --disk-size 32g
+scaffold run
+
+* events monitoren / json wo speichern
+
+kubectl get events
+
+* loadgenerator ausprobieren
+
+--> woher kriegt der seine frontend adresse?
+
+
+* zweite VM
+* autoscaler 
+
+
+* events monitoren / json wo speichern
+
+
+* script
+
+--> define what we mean by "trace"
+--> come up with interesting properties
+
+
+* email
+* properties überlegen + wie man sie monitoren könnte
+
+ 1408  minikube addons enable metrics-server
+ 1409  minikube start --cpus=4 --memory 4096 --disk-size 32g
+ 1411  skaffold run
+ 1412  kubectl autoscale deployment frontend --min=1 --max=3 --cpu-percent=30
+ 1413  kubectl scale --replicas=5 deployment loadgenerator
+ 1414  watch kubectl describe hpa frontend
+ 1415  kubectl scale --replicas=1 deployment loadgenerator
+ 1416  watch kubectl describe hpa frontend
+
+
+
+September 2
+==================================
+
+--> define what we mean by "trace": trace = sequence of valuations (valution: Wahrheitswerte für alle APs)
+which pods, which vms, scheduling pods to VMs
+
+Do we care about POD ids? or just number? say we allow 1-3 frontend pods - number, 
+
+example:
+_________________
+in: load = 1, load = 5, load = 1
+
+out:
+frontend = 1, frontend = 2, frontend = 3, frontend = 2, frontend = 1
+
+with 2 VMs:
+in: l = 1, l = 5, l = 1
+
+out: F, FF, FFF, 
+
+
+config if there is only 1 VM: number of pods of each kind, is VM reachable
+if there are several VMs: which VMs are reachable, what kind of pods are running there 
+
+NEXT STEP: in paper schauen was configs ausmacht!
+
+How to spice this up?
+mehr services autoscalen lassen
+2.VM, scale number of VMs
+
+--> extract those traces
+
+HOW ABOUT JUST STICKING WITH PART 2 as is? -- einfach aber nutzlos, der rest wird schwer (dann lern ma halt das load behavior :D)
+
+interessante frage: wie funzt der load generator eigentlich: ich stelle manuell ein wie viele load pods
+
+was wir vielleicht eigentlich predicten wollen: gegeben bestimmte änderung im load, wie wird sich sys verhalten -- bedingte wkeit!
+
+(gegeben 3 load generators -> was tut sich?)
+
+DO NOT:
+--> come up with interesting properties / examples  OR figure out different interesting part 2
+* All requests are eventually answered (weder monitorizable noch möglich mit der Info, die wir abgreifen) :(
+* robustness: wenn 1 server failed, können wir immer noch requests beantworten
+
+
+
+
+NEXT STEP: trace + example on paper!
+
+
+problem description
+===========================
+
+
+NEXT STEPS
+============================
+random generator that changes load + collect data
+what is input variable? # of load generator pods? # requests / s... --> ideally same thing that is given to scaler as parameter
+try with second VM
+
+
+* simulate load -- keep cpu metric, künstlich verlangsamen verbindung zwicshen VMs -- oder affinity und so ändern??
+
+
+SEPTMBER 12
+====================================
+*) rausfinden wie ich load steuern kann, besser als anzahl der load Prozesse (über Poisson verteilung) - erst mal mit zufallsgenerator probieren -- number of users can be controlled via locust parameter, their behavior in locust file
+
+!*) automaitsch traces extracten ;-)
+*) 2. VM zum laufen bringen
+
+Problem:
+kubectl rollout status deployment/hello
+Waiting for deployment "hello" rollout to finish: 1 of 2 updated replicas are available...
+error: deployment "hello" exceeded its progress deadline
+
+
+*) load generator schreiben
+!*) daten sammeln
+!*) Model trainieren
+*) evaluieren
+*) Bericht schreiben (?) - Mail diesbezüglich
+
+
+SEPTEMBER 15
+==================
+https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#support-for-cooldown-delay 
+info about delay -- tune for testing
+see also here: https://medium.com/faun/kubernetes-horizontal-pod-autoscaler-hpa-bb789b3070e4
+
+Question: should we scale more than just frontend? bottleneck might be elsewhere...
+
+
+
+
+predictive hpa: https://predictive-horizontal-pod-autoscaler.readthedocs.io/en/latest/
+
+
+
+
+minikube alternative for multinode: https://kind.sigs.k8s.io/docs/user/known-issues/
+
+
+https://www.kaggle.com/bigquery/google-analytics-sample
+
+import os
+os.chdir(r'../working')
+
+Query:
+
+query1 = """SELECT
+visitStartTime,
+geoNetwork.continent as continent,
+geoNetwork.country as country
+FROM `bigquery-public-data.google_analytics_sample.ga_sessions_*`
+WHERE
+_TABLE_SUFFIX BETWEEN '20170701' AND '20170731'
+ORDER BY
+visitStartTime ASC;
+        """
+response1 = google_analytics.query_to_pandas_safe(query1)
+response1.head(10)
+
+response1.to_csv(r'data.csv')
+
+from IPython.display import FileLink
+FileLink(r'data.csv')
